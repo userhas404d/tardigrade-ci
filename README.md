@@ -1,3 +1,3 @@
 # tardigrade-ci
 
-A Terraform Module
+Tardigrade CI framework
