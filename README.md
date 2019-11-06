@@ -1,3 +1,4 @@
 # tardigrade-ci
 
-Tardigrade CI framework
+A docker based test framework
+

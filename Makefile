@@ -80,7 +80,7 @@ shellcheck/install: $(BIN_DIR) guard/program/xz
 
 terraform/lint: | guard/program/terraform
 	@ echo "[$@]: Linting Terraform files..."
-	terraform fmt -check=true -diff=true
+	terraform fmt -recursive -check=true -diff=true
 	@ echo "[$@]: Terraform files PASSED lint test!"
 
 terraform/format: | guard/program/terraform
@@ -97,16 +97,18 @@ sh/lint: | guard/program/shellcheck
 json/%: FIND_JSON := find . $(FIND_EXCLUDES) -name '*.json' -type f
 json/lint: | guard/program/jq
 	@ echo "[$@]: Linting JSON files..."
-	$(FIND_JSON) | $(XARGS) bash -c 'cmp {} <(jq --indent 4 -S . {}) || (echo "[{}]: Failed JSON Lint Test"; exit 1)'
+	@ $(FIND_JSON) | $(XARGS) bash -c 'jq --indent 4 -S . "{}" > /dev/null 2>&1 || (echo "[{}]: Failed JSON Lint Test"; exit 1)'
+	$(FIND_JSON) | $(XARGS) bash -c 'cmp {} <(jq --indent 4 -S . {})'
 	@ echo "[$@]: JSON files PASSED lint test!"
 
 json/format: | guard/program/jq
 	@ echo "[$@]: Formatting JSON files..."
+	@ $(FIND_JSON) | $(XARGS) bash -c 'jq --indent 4 -S . "{}" > /dev/null 2>&1 || (echo "[{}]: JSON format failed"; exit 1)'
 	$(FIND_JSON) | $(XARGS) bash -c 'echo "$$(jq --indent 4 -S . "{}")" > "{}"'
 	@ echo "[$@]: Successfully formatted JSON files!"
 
 tfdocs-awk/install: $(BIN_DIR)
-tfdocs-awk/install: ARCHIVE := https://github.com/plus3it/tfdocs-awk/archive/0.0.0.tar.gz
+tfdocs-awk/install: ARCHIVE := https://github.com/plus3it/tfdocs-awk/archive/0.0.2.tar.gz
 tfdocs-awk/install:
 	$(CURL) $(ARCHIVE) | tar -C $(BIN_DIR) --strip-components=1 --wildcards '*.sh' --wildcards '*.awk' -xzvf -
 
@@ -120,12 +122,26 @@ docs/lint: | tfdocs-awk/install guard/program/terraform-docs
 	@ bash -eu -o pipefail autodocs.sh -l
 	@ echo "[$@] documentation linting complete!"
 
+TERRAFORM_TEST_DIR ?= tests
 terratest/install: | guard/program/go
-	cd tests && go mod init tardigrade-ci/tests
-	cd tests && go build ./...
-	cd tests && go mod tidy
+	cd $(TERRAFORM_TEST_DIR) && go mod init tardigarde-ci/tests
+	cd $(TERRAFORM_TEST_DIR) && go build ./...
+	cd $(TERRAFORM_TEST_DIR) && go mod tidy
 
 terratest/test: | guard/program/go
-	cd tests && go test -count=1 -timeout 20m
+	cd $(TERRAFORM_TEST_DIR) && go test -count=1 -timeout 20m
 
 test: terratest/test
+
+BATS_RELEASE ?= 1.1.0
+bats/install: $(BIN_DIR)
+bats/install: ARCHIVE := https://github.com/bats-core/bats-core/archive/v$(BATS_RELEASE).tar.gz
+bats/install:
+	$(CURL) $(ARCHIVE) | tar -C $(BIN_DIR) -xzvf - > /dev/null 2>&1 || (echo "[$@]: Download failed"; exit 1)
+	$(BIN_DIR)/bats-core-$(BATS_RELEASE)/install.sh ~
+	bats --version
+	@ echo "[$@]: Completed successfully!"
+
+bats/test:
+	cd tests && bats -jr *.bats
+	@ echo "[$@]: Completed successfully!"
