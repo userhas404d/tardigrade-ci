@@ -2,7 +2,7 @@
 
 
 DIR="$(pwd)"
-TEST_DIR="$DIR/terraform_test_harness"
+TEST_DIR="$DIR/../terraform"
 
 function setup() {
 cat > "$TEST_DIR/main.tf" <<-EOF
@@ -19,7 +19,7 @@ EOF
 
 
 @test "test: terraform test failure" {
-  run make TERRAFORM_TEST_DIR=terraform_test_harness test
+  run make TERRAFORM_TEST_DIR="../terraform" test
   [ "$status" -eq 2 ]
 }
 

@@ -109,27 +109,33 @@ json/format: | guard/program/jq
 
 tfdocs-awk/install: $(BIN_DIR)
 tfdocs-awk/install: ARCHIVE := https://github.com/plus3it/tfdocs-awk/archive/0.0.2.tar.gz
+# tfdocs-awk/install: ARCHIVE := https://github.com/userhas404d/tfdocs-awk/archive/null-awk.tar.gz
 tfdocs-awk/install:
-	$(CURL) $(ARCHIVE) | tar -C $(BIN_DIR) --strip-components=1 --wildcards '*.sh' --wildcards '*.awk' -xzvf -
+	@ $(CURL) $(ARCHIVE) | tar -C $(BIN_DIR) --strip-components=1 --wildcards '*.sh' --wildcards '*.awk' -xzvf - \
+	> /dev/null 2>&1 || (echo "[$@]: Failed to install tfdocs-awk"; exit 1)
 
 docs/generate: | tfdocs-awk/install guard/program/terraform-docs
 	@ echo "[$@]: Creating documentation files.."
 	@ bash -eu -o pipefail autodocs.sh -g
-	@ echo "[$@]: Documentation generated!"
+	@ echo "[$@]: Completed successfully!"
 
 docs/lint: | tfdocs-awk/install guard/program/terraform-docs
 	@ echo "[$@] Linting documentation files.."
 	@ bash -eu -o pipefail autodocs.sh -l
-	@ echo "[$@] documentation linting complete!"
+	@ echo "[$@]: Completed successfully!"
 
 TERRAFORM_TEST_DIR ?= tests
 terratest/install: | guard/program/go
+	@ echo "[$@] Installing terratest"
 	cd $(TERRAFORM_TEST_DIR) && go mod init tardigarde-ci/tests
 	cd $(TERRAFORM_TEST_DIR) && go build ./...
 	cd $(TERRAFORM_TEST_DIR) && go mod tidy
+	@ echo "[$@]: Completed successfully!"
 
 terratest/test: | guard/program/go
+	@ echo "[$@] Starting Terraform tests"
 	cd $(TERRAFORM_TEST_DIR) && go test -count=1 -timeout 20m
+	@ echo "[$@]: Completed successfully!"
 
 test: terratest/test
 
@@ -142,6 +148,9 @@ bats/install:
 	bats --version
 	@ echo "[$@]: Completed successfully!"
 
-bats/test:
-	cd tests && bats -jr *.bats
+bats/test: | bats/install guard/program/bats
+	@ echo "[$@]: Starting make target unit tests"
+	bash -c 'cd tests/make && bats -r *.bats'
 	@ echo "[$@]: Completed successfully!"
+
+install: terraform/install shellcheck/install tfdocs-awk/install
