@@ -5,9 +5,17 @@ language: node_js
 node_js:
   - "8"
 
+env:
+  global:
+    - IMAGE_NAME=plus3it/tests-harness
+
 stages:
   - lint
+  - test
   - deploy
+
+services:
+  - docker
 
 jobs:
   include:
@@ -31,6 +39,10 @@ jobs:
       script:
         - make terraform/lint
         - make docs/lint
+    - stage: test
+      name: Makefile unit tests
+      script:
+        - docker build -t "$IMAGE_NAME" .
     - stage: deploy
       if: branch = master AND type = push AND repo = plus3it/tardigrade-ci
       before_script:
@@ -43,12 +55,16 @@ jobs:
       before_deploy:
         - |
           (set -x; git tag -a $RELEASE_VERSION -m $RELEASE_VERSION)
+          echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+          docker tag "$IMAGE_NAME" "${IMAGE_NAME}:latest"
+          docker tag "$IMAGE_NAME" "${IMAGE_NAME}:$RELEASE_VERSION"
       deploy:
         provider: releases
         api_key:
           secure:
         name: $RELEASE_VERSION
         body: $RELEASE_BODY
+        script: docker push "${IMAGE_NAME}:latest" && docker push "${IMAGE_NAME}:${version}"
         tag_name: $RELEASE_VERSION
         target_commitish: $TRAVIS_COMMIT
         draft: false

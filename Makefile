@@ -124,7 +124,7 @@ docs/lint: | tfdocs-awk/install guard/program/terraform-docs
 	@ bash -eu -o pipefail autodocs.sh -l
 	@ echo "[$@]: Completed successfully!"
 
-TERRAFORM_TEST_DIR ?= tests
+TERRAFORM_TEST_DIR ?= tests/terraform
 terratest/install: | guard/program/go
 	@ echo "[$@] Installing terratest"
 	cd $(TERRAFORM_TEST_DIR) && go mod init tardigarde-ci/tests
