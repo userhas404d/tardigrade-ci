@@ -42,10 +42,7 @@ jobs:
     - stage: test
       name: Makefile unit tests
       script:
-        - |
-          CHANGED_FILES=($(git diff --name-only $TRAVIS_COMMIT_RANGE))
-          echo "$CHANGED_FILES"
-        # - docker build -t "$IMAGE_NAME" .
+        - bash bin/conditional-makefile-unit-tests.sh
     - stage: deploy
       if: branch = master AND type = push AND repo = plus3it/tardigrade-ci
       before_script:
